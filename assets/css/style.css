@@ -16,6 +16,7 @@ body .loading-wrapper {
   justify-content: center;
   align-items: center;
   display: none;
+  z-index: 999999;
 }
 
 body .loading-wrapper .overlay {
@@ -30,4 +31,18 @@ body .loading-wrapper .overlay {
 
 body .loading-wrapper.loading {
   display: flex;
+}
+
+body .map-wrapper {
+  height: 85vh;
+  width: 100%;
+}
+
+body .map-wrapper #map {
+  height: 100%;
+  width: 100%;
+}
+
+body .card {
+  border: none;
 }
