@@ -6,11 +6,27 @@ try {
   error_reporting(E_ALL);
 
   // collects the form element values via POST
-  $data = json_decode($_POST['data'], true);
+  $res = "";
+  $data = "";
+
+  if (isset(($_POST['data']))) {
+    $data = json_decode($_POST['data'], true);
+  }
   $id = $_POST['id']; // used to specify which APIs to call
 
   if ($id === 'geocodeLocation') {
     $res = fetch("https://api.opencagedata.com/geocode/v1/json?q=" . $data['latitude'] . "+" . $data['longitude'] . "&key=9a427b614bb5400eb3c625a0836a58ff");
+  }
+
+  if ($id === 'getCountries') {
+    // todo: 1. countryBorders magic for only string country names
+    $res = fetch('https://restcountries.com/v3.1/all/?fields=name,currencies,capital,population,capitalInfo');
+  }
+
+  if ($id === 'getSingleCountry') {
+    // todo: 2. get the borders of the single country from countryBorders AAAAANNND get the single 
+    // country details from rest countries
+    $res = "";
   }
 
   // structure the script's response as JSON with the requested data

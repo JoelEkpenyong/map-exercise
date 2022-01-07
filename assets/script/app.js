@@ -31,11 +31,16 @@ const marker = L.marker([1.0, 38.0]).addTo(map);
 const getCountries = () => {
   loadingWrapper.classList.add('loading');
   return new Promise((resolve, reject) => {
-    fetch(
-        'https://restcountries.com/v3.1/all/?fields=name,currencies,capital,population,capitalInfo'
-      )
+    const body = new FormData();
+    body.append('id', 'getCountries');
+    fetch('./assets/php/main.php', {
+        method: 'post',
+        body
+      })
       .then((res) => res.json())
-      .then((data) => {
+      .then(({
+        data
+      }) => {
         COUNTRY_DATA = data;
         return data.map((country) => country.name.common);
       })
@@ -125,18 +130,19 @@ const getCurrentLocation = async () => {
     return new Promise((resolve, reject) => {
       window.navigator.geolocation.getCurrentPosition(
         async (pos) => {
+            const body = new FormData();
+            body.append('data', JSON.stringify({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            }));
+            body.append('id', 'geocodeLocation');
             const res = await fetch('./assets/php/main.php', {
               method: 'post',
-              body: {
-                id: 'geocodeLocation',
-                data: {
-                  latitude: pos.coords.latitude,
-                  longitude: pos.coords.longitude,
-                }
-              }
+              body
             });
 
             const data = await res.json();
+            console.log(JSON.stringify(data, null, 2));
             let countryName = data.results[0].components.country;
             const country = getSelectedCountry(countryName);
             const rate = await getCountryExchangeRate(country);
