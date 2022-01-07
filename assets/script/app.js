@@ -12,27 +12,28 @@ const popupHtml = '';
 const map = L.map('map');
 
 L.tileLayer(
-  'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
-  {
-    attribution:
-      'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+  'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
     maxZoom: 18,
     id: 'mapbox/streets-v11',
     tileSize: 512,
     zoomOffset: -1,
-    accessToken:
-      'pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q',
+    accessToken: 'pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q',
   }
 ).addTo(map);
 
 const marker = L.marker([1.0, 38.0]).addTo(map);
 
+
+/** This method will extract a list of countries from the countryBorders.geo.json file
+ * The file must only return country names at this point
+ */
 const getCountries = () => {
   loadingWrapper.classList.add('loading');
   return new Promise((resolve, reject) => {
     fetch(
-      'https://restcountries.com/v3.1/all/?fields=name,currencies,capital,population,capitalInfo'
-    )
+        'https://restcountries.com/v3.1/all/?fields=name,currencies,capital,population,capitalInfo'
+      )
       .then((res) => res.json())
       .then((data) => {
         COUNTRY_DATA = data;
@@ -124,21 +125,29 @@ const getCurrentLocation = async () => {
     return new Promise((resolve, reject) => {
       window.navigator.geolocation.getCurrentPosition(
         async (pos) => {
-          const res = await fetch(
-            `https://api.opencagedata.com/geocode/v1/json?q=${pos.coords.latitude}+${pos.coords.longitude}&key=9a427b614bb5400eb3c625a0836a58ff`
-          );
-          const data = await res.json();
-          let countryName = data.results[0].components.country;
-          const country = getSelectedCountry(countryName);
-          const rate = await getCountryExchangeRate(country);
-          const weatherData = await getCityWeather(country);
-          const countryInfo = formatSelectedCountry(country, rate, weatherData);
-          showOnMap([pos.coords.latitude, pos.coords.longitude], countryInfo);
-          resolve(countryName);
-        },
-        (err) => {
-          reject(err);
-        }
+            const res = await fetch('./assets/php/main.php', {
+              method: 'post',
+              body: {
+                id: 'geocodeLocation',
+                data: {
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                }
+              }
+            });
+
+            const data = await res.json();
+            let countryName = data.results[0].components.country;
+            const country = getSelectedCountry(countryName);
+            const rate = await getCountryExchangeRate(country);
+            const weatherData = await getCityWeather(country);
+            const countryInfo = formatSelectedCountry(country, rate, weatherData);
+            showOnMap([pos.coords.latitude, pos.coords.longitude], countryInfo);
+            resolve(countryName);
+          },
+          (err) => {
+            reject(err);
+          }
       );
     });
   }
@@ -166,7 +175,10 @@ const fetchExchangeRates = async (currency) => {
       'https://openexchangerates.org/api/latest.json?app_id=c61cb86d27c846648c2759cae6c10f72'
     );
     const data = await res.json();
-    EXCHANGE_RATE = { base: data.base, rates: data.rates };
+    EXCHANGE_RATE = {
+      base: data.base,
+      rates: data.rates
+    };
 
     resolve(data);
     reject('Failed');
