@@ -1,67 +1,88 @@
-const countriesWrapper = document.getElementById('countries-ul');
-const countriesElement = document.querySelectorAll('.country');
-const dropdownButton = document.getElementById('dropdownButton');
-const loadingWrapper = document.getElementById('loadingWrapper');
+const countriesWrapper = document.getElementById("countries-ul");
+const countriesElement = document.querySelectorAll(".country");
+const dropdownButton = document.getElementById("dropdownButton");
+const loadingWrapper = document.getElementById("loadingWrapper");
 
-let COUNTRY_DATA = [];
 let EXCHANGE_RATE = {};
-let SELECTEDCOUNTRY = {};
 
-const popupHtml = '';
+const popupHtml = "";
 
-const map = L.map('map');
+const map = L.map("map");
 
 L.tileLayer(
-  'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+  "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
+  {
+    attribution:
+      'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
     maxZoom: 18,
-    id: 'mapbox/streets-v11',
+    id: "mapbox/streets-v11",
     tileSize: 512,
     zoomOffset: -1,
-    accessToken: 'pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q',
+    accessToken:
+      "pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q",
   }
 ).addTo(map);
 
 const marker = L.marker([1.0, 38.0]).addTo(map);
 
-
 /** This method will extract a list of countries from the countryBorders.geo.json file
  * The file must only return country names at this point
  */
-const getCountries = () => {
-  loadingWrapper.classList.add('loading');
+
+const getCountriesFromFile = () => {
+  loadingWrapper.classList.add("loading");
   return new Promise((resolve, reject) => {
     const body = new FormData();
-    body.append('id', 'getCountries');
-    fetch('./assets/php/main.php', {
-        method: 'post',
-        body
-      })
+    body.append("id", "getCountryFromFile");
+    fetch("./assets/php/main.php", {
+      method: "post",
+      body,
+    })
       .then((res) => res.json())
-      .then(({
-        data
-      }) => {
-        COUNTRY_DATA = data;
-        return data.map((country) => country.name.common);
-      })
-      .then((countryNames) => {
+      .then(({ data: countryNames }) => {
         appendToPage(countryNames);
-        loadingWrapper.classList.remove('loading');
-        resolve('Success');
+        loadingWrapper.classList.remove("loading");
+        resolve("Success");
       })
       .catch((err) => {
         console.log(
-          'An error occured while getting countries: %s',
+          "An error occured while getting countries: %s",
           err.message
         );
-        loadingWrapper.classList.remove('loading');
+        loadingWrapper.classList.remove("loading");
         reject(err);
       });
   });
 };
 
-const getSelectedCountry = (name) =>
-  COUNTRY_DATA.find((country) => country.name.common === name);
+const getSelectedCountry = (name) => {
+  return new Promise((resolve, reject) => {
+    const body = new FormData();
+    body.append(
+      "data",
+      JSON.stringify({
+        name,
+      })
+    );
+    body.append("id", "getSingleCountry");
+    fetch("./assets/php/main.php", {
+      method: "post",
+      body,
+    })
+      .then((res) => res.json())
+      .then(({ data }) => {
+        resolve(data[0]);
+      })
+      .catch((err) => {
+        console.log(
+          "An error occured while getting data for selected country: %s",
+          err.message
+        );
+        loadingWrapper.classList.remove("loading");
+        reject(err);
+      });
+  });
+};
 
 const formatSelectedCountry = (country, rate, weatherData) => {
   const currencyCode = Object.keys(country.currencies)[0];
@@ -73,20 +94,20 @@ const formatSelectedCountry = (country, rate, weatherData) => {
     currency: `${country.currencies[currencyCode].name} (${currencyCode})`,
     exchangeRate: `1 ${currencyCode} = ${rate} ${EXCHANGE_RATE.base}`,
     currentWeather: weatherData,
-    latlng: country.capitalInfo['latlng'],
+    latlng: country.capitalInfo["latlng"],
   };
 };
 
 const appendToPage = (data) => {
   data.forEach((countryName) => {
-    const listItem = document.createElement('li');
-    const btnEl = document.createElement('button');
-    btnEl.classList.add('btn', 'btn-light', 'w-100', 'text-start', 'country');
-    listItem.classList.add('dropdown-item');
+    const listItem = document.createElement("li");
+    const btnEl = document.createElement("button");
+    btnEl.classList.add("btn", "btn-light", "w-100", "text-start", "country");
+    listItem.classList.add("dropdown-item");
     btnEl.appendChild(document.createTextNode(countryName));
     listItem.appendChild(btnEl);
     countriesWrapper.appendChild(listItem);
-    btnEl.addEventListener('click', (el) => {
+    btnEl.addEventListener("click", (el) => {
       updateButtonText(el);
       handleClick(el);
     });
@@ -94,7 +115,7 @@ const appendToPage = (data) => {
 };
 
 const updateButtonText = (el) => {
-  if (typeof el === 'object') {
+  if (typeof el === "object") {
     dropdownButton.textContent = el.target.textContent;
     return;
   }
@@ -130,30 +151,33 @@ const getCurrentLocation = async () => {
     return new Promise((resolve, reject) => {
       window.navigator.geolocation.getCurrentPosition(
         async (pos) => {
-            const body = new FormData();
-            body.append('data', JSON.stringify({
+          const body = new FormData();
+          body.append(
+            "data",
+            JSON.stringify({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
-            }));
-            body.append('id', 'geocodeLocation');
-            const res = await fetch('./assets/php/main.php', {
-              method: 'post',
-              body
-            });
+            })
+          );
+          body.append("id", "geocodeLocation");
+          const res = await fetch("./assets/php/main.php", {
+            method: "post",
+            body,
+          });
 
-            const data = await res.json();
-            console.log(JSON.stringify(data, null, 2));
-            let countryName = data.results[0].components.country;
-            const country = getSelectedCountry(countryName);
-            const rate = await getCountryExchangeRate(country);
-            const weatherData = await getCityWeather(country);
-            const countryInfo = formatSelectedCountry(country, rate, weatherData);
-            showOnMap([pos.coords.latitude, pos.coords.longitude], countryInfo);
-            resolve(countryName);
-          },
-          (err) => {
-            reject(err);
-          }
+          const data = await res.json();
+          // console.log(JSON.stringify(data, null, 2));
+          let countryName = data.results[0].components.country;
+          const country = getSelectedCountry(countryName);
+          const rate = await getCountryExchangeRate(country);
+          const weatherData = await getCityWeather(country);
+          const countryInfo = formatSelectedCountry(country, rate, weatherData);
+          showOnMap([pos.coords.latitude, pos.coords.longitude], countryInfo);
+          resolve(countryName);
+        },
+        (err) => {
+          reject(err);
+        }
       );
     });
   }
@@ -178,16 +202,16 @@ const getCityWeather = async (country) => {
 const fetchExchangeRates = async (currency) => {
   return new Promise(async (resolve, reject) => {
     const res = await fetch(
-      'https://openexchangerates.org/api/latest.json?app_id=c61cb86d27c846648c2759cae6c10f72'
+      "https://openexchangerates.org/api/latest.json?app_id=c61cb86d27c846648c2759cae6c10f72"
     );
     const data = await res.json();
     EXCHANGE_RATE = {
       base: data.base,
-      rates: data.rates
+      rates: data.rates,
     };
 
     resolve(data);
-    reject('Failed');
+    reject("Failed");
   });
 };
 
@@ -197,25 +221,24 @@ const getCountryExchangeRate = (country) => {
 };
 
 const handleClick = async (el) => {
-  console.log('%s has been selected', el.target.textContent);
-  loadingWrapper.classList.add('loading');
-  const country = getSelectedCountry(el.target.textContent);
+  console.log("%s has been selected", el.target.textContent);
+  loadingWrapper.classList.add("loading");
+  const country = await getSelectedCountry(el.target.textContent);
   try {
     const rate = await getCountryExchangeRate(country);
     const weatherData = await getCityWeather(country);
     const countriesInfo = formatSelectedCountry(country, rate, weatherData);
 
-    SELECTEDCOUNTRY = countriesInfo;
-    showOnMap(country.capitalInfo['latlng'], countriesInfo);
-    console.dir(SELECTEDCOUNTRY);
-    loadingWrapper.classList.remove('loading');
+    showOnMap(country.capitalInfo["latlng"], countriesInfo);
+    loadingWrapper.classList.remove("loading");
   } catch (error) {
-    loadingWrapper.classList.remove('loading');
+    loadingWrapper.classList.remove("loading");
   }
 };
 
 const init = async () => {
-  await getCountries();
+  // await getCountries();
+  await getCountriesFromFile();
   await fetchExchangeRates();
   const countryName = await getCurrentLocation();
   updateButtonText(countryName);

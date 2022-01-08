@@ -18,15 +18,13 @@ try {
     $res = fetch("https://api.opencagedata.com/geocode/v1/json?q=" . $data['latitude'] . "+" . $data['longitude'] . "&key=9a427b614bb5400eb3c625a0836a58ff");
   }
 
-  if ($id === 'getCountries') {
-    // todo: 1. countryBorders magic for only string country names
-    $res = fetch('https://restcountries.com/v3.1/all/?fields=name,currencies,capital,population,capitalInfo');
+  if ($id === 'getSingleCountry') {
+    $res = fetch("https://restcountries.com/v3.1/name/" . $data['name'] . "/?fields=name,currencies,capital,population,capitalInfo");
   }
 
-  if ($id === 'getSingleCountry') {
-    // todo: 2. get the borders of the single country from countryBorders AAAAANNND get the single 
-    // country details from rest countries
-    $res = "";
+
+  if ($id === 'getCountryFromFile') {
+    $res = getCountryDataFromFile();
   }
 
   // structure the script's response as JSON with the requested data
@@ -76,3 +74,22 @@ function getErrorResponse($e)
 
   return $response;
 }
+
+function formatCountryData($v)
+{
+  return $v['properties']['name'];
+};
+
+function getCountryDataFromFile()
+{
+  $filename = '../../data/countryBorders.geo.json';
+
+  $json = file_get_contents($filename);
+  $json_data = json_decode($json, true);
+  $countries = array_slice($json_data, 1);
+
+  return array_map('formatCountryData', $countries['features']);
+}
+
+
+// print_r(getCountryDataFromFile());
