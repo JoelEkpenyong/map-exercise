@@ -22,9 +22,24 @@ try {
     $res = fetch("https://restcountries.com/v3.1/name/" . $data['name'] . "/?fields=name,currencies,capital,population,capitalInfo");
   }
 
-
   if ($id === 'getCountryFromFile') {
-    $res = getCountryDataFromFile();
+    $res = getCountryNames();
+  }
+
+  if ($id === 'getWeather') {
+    $res = fetch(
+      "https://api.openweathermap.org/data/2.5/weather?q=" . $data['city'] . "&units=metric&appid=70e19ba461fd1eb09a6eea1bbf30338f"
+    );
+  }
+
+  if ($id === 'getExchangeRates') {
+    $res = fetch(
+      "https://openexchangerates.org/api/latest.json?app_id=c61cb86d27c846648c2759cae6c10f72"
+    );
+  }
+
+  if ($id === 'getBorderBoundaries') {
+    $res = getBorderBoundaries();
   }
 
   // structure the script's response as JSON with the requested data
@@ -75,11 +90,6 @@ function getErrorResponse($e)
   return $response;
 }
 
-function formatCountryData($v)
-{
-  return $v['properties']['name'];
-};
-
 function getCountryDataFromFile()
 {
   $filename = '../../data/countryBorders.geo.json';
@@ -88,8 +98,29 @@ function getCountryDataFromFile()
   $json_data = json_decode($json, true);
   $countries = array_slice($json_data, 1);
 
-  return array_map('formatCountryData', $countries['features']);
+  return  $countries['features'];
+}
+
+function getCountryNames()
+{
+  function formatWithNames($v)
+  {
+    return $v['properties']['name'];
+  };
+
+  return array_map('formatWithNames', getCountryDataFromFile());
+}
+
+function getBorderBoundaries()
+{
+  function formatWithBoundaries($v)
+  {
+    $object = (object) array('name' => $v['properties']['name'], 'bounds' => $v['geometry']['coordinates']);
+    return $object;
+  };
+
+  return array_map('formatWithBoundaries', getCountryDataFromFile());
 }
 
 
-// print_r(getCountryDataFromFile());
+// print_r(getBorderBoundaries());
