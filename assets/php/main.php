@@ -19,7 +19,7 @@ try {
   }
 
   if ($id === 'getSingleCountry') {
-    $res = fetch("https://restcountries.com/v3.1/name/" . $data['name'] . "/?fields=name,currencies,capital,population,capitalInfo");
+    $res = fetch("https://restcountries.com/v3.1/name/" . urlencode($data['name']) . "/?fullText=true&fields=name,currencies,flag,capital,population,capitalInfo");
   }
 
   if ($id === 'getCountryFromFile') {
@@ -38,8 +38,8 @@ try {
     );
   }
 
-  if ($id === 'getBorderBoundaries') {
-    $res = getBorderBoundaries();
+  if ($id === 'getCountryBorder') {
+    $res = getCountryBorder($data['name']);
   }
 
   // structure the script's response as JSON with the requested data
@@ -108,19 +108,15 @@ function getCountryNames()
     return $v['properties']['name'];
   };
 
-  return array_map('formatWithNames', getCountryDataFromFile());
+  $countryNames = array_map('formatWithNames', getCountryDataFromFile());
+  sort($countryNames);
+  return $countryNames;
 }
 
-function getBorderBoundaries()
+function getCountryBorder($name)
 {
-  function formatWithBoundaries($v)
-  {
-    $object = (object) array('name' => $v['properties']['name'], 'bounds' => $v['geometry']['coordinates']);
-    return $object;
-  };
-
-  return array_map('formatWithBoundaries', getCountryDataFromFile());
+  $border = array_filter(getCountryDataFromFile(), function ($v) use ($name) {
+    return $v['properties']['name'] === $name;
+  });
+  return array_values($border)[0];
 }
-
-
-// print_r(getBorderBoundaries());

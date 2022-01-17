@@ -5,23 +5,18 @@ const loadingWrapper = document.getElementById("loadingWrapper");
 
 let EXCHANGE_RATE = {};
 
-let BORDERS = [];
-
 const popupHtml = "";
 
 const map = L.map("map");
 
 L.tileLayer(
-  "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
-  {
-    attribution:
-      'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+  "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
     maxZoom: 18,
     id: "mapbox/streets-v11",
     tileSize: 512,
     zoomOffset: -1,
-    accessToken:
-      "pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q",
+    accessToken: "pk.eyJ1Ijoiam9lbGVrcGVueW9uZyIsImEiOiJja3d4Znd3bXMwZGF0MnFycm81eXI0b2MwIn0.EauZWfHlAP7Qa-3bDc4N5Q",
   }
 ).addTo(map);
 
@@ -31,17 +26,19 @@ const marker = L.marker([1.0, 38.0]).addTo(map);
  * The file must only return country names at this point
  */
 
-const getCountriesFromFile = () => {
+const loadCountriesFromFile = () => {
   loadingWrapper.classList.add("loading");
   return new Promise((resolve, reject) => {
     const body = new FormData();
     body.append("id", "getCountryFromFile");
     fetch("./assets/php/main.php", {
-      method: "post",
-      body,
-    })
+        method: "post",
+        body,
+      })
       .then((res) => res.json())
-      .then(({ data: countryNames }) => {
+      .then(({
+        data: countryNames
+      }) => {
         appendToPage(countryNames);
         loadingWrapper.classList.remove("loading");
         resolve("Success");
@@ -57,25 +54,22 @@ const getCountriesFromFile = () => {
   });
 };
 
-const getBorderBoundaries = async () => {
-  function formatBorderArray(arr) {
-    return arr.map((obj) => ({
-      name: obj.name,
-      bounds: obj.bounds.map((arr) => arr[0]),
-    }));
-  }
-
+const getCountryBorder = async (name) => {
   const body = new FormData();
-  body.append("id", "getBorderBoundaries");
+  body.append("id", "getCountryBorder");
+  body.append("data", JSON.stringify({
+    name,
+  }));
 
   const res = await fetch("./assets/php/main.php", {
     method: "post",
     body,
   });
 
-  const { data } = await res.json();
-  // console.log(formatBorderArray(data));
-  return formatBorderArray(data);
+  const {
+    data
+  } = await res.json();
+  return data;
 };
 
 const getSelectedCountry = (name) => {
@@ -89,11 +83,13 @@ const getSelectedCountry = (name) => {
     );
     body.append("id", "getSingleCountry");
     fetch("./assets/php/main.php", {
-      method: "post",
-      body,
-    })
+        method: "post",
+        body,
+      })
       .then((res) => res.json())
-      .then(({ data }) => {
+      .then(({
+        data
+      }) => {
         resolve(data[0]);
       })
       .catch((err) => {
@@ -114,10 +110,11 @@ const formatSelectedCountry = (country, rate, weatherData) => {
     name: country.name.common,
     capital: country.capital[0],
     population: country.population,
+    flag: country.flag,
     currency: `${country.currencies[currencyCode].name} (${currencyCode})`,
     exchangeRate: `1 ${currencyCode} = ${rate} ${EXCHANGE_RATE.base}`,
     currentWeather: weatherData,
-    latlng: country.capitalInfo["latlng"],
+    latlng: country.capitalInfo.latlng,
   };
 };
 
@@ -147,26 +144,29 @@ const updateButtonText = (el) => {
 
 const showOnMap = ([lat, lng], content) => {
   marker.setLatLng([lat, lng]);
-  marker
-    .bindPopup(
-      `<div class="card" style="width: 18rem;">
-      <div class="card-body">
-        <h5 id="countryName" class="card-title fs-5">${content?.name}</h5>
-        <h6 id="capitalCity" class="card-subtitle mb-2 text-muted fs-6 ">${content?.capital}</h6>
-        <p class="card-text fs-6">${content?.name} has a total population of ${content?.population}. It's currency is ${content?.currency} - ${content?.exchangeRate}</p>
-        <p class="card-text fs-6">
-          <span class=" fs-5 card-title">Current Weather</span> <br>
-          <span class="fs-6 mb-3 d-block text-capitalize">${content.currentWeather.weather[0].description}</span>
-          Temperature of ${content.currentWeather.main.temp}°C, humidity of ${content.currentWeather.main.humidity}%, and wind speeds of ${content.currentWeather.wind.speed}m/s
-        </p>
+  showCountryContent(content);
+  map.setView([lat, lng], 6);
+};
 
-        <a href="#" class="card-link">Card link</a>
-        <a href="#" class="card-link">Another link</a>
-      </div>
-  	</div>`
-    )
-    .openPopup();
-  map.setView([lat, lng], 8);
+const showCountryContent = (content) => {
+  const infoContainer = document.querySelector('.offcanvas');
+  const titleContainer = document.querySelector('.offcanvas-title');
+  const bodyContainer = document.querySelector('.offcanvas-body');
+
+  titleContainer.innerHTML = `${content.flag} ${content.name}<br/>
+  <span id="capitalCity" class="text-muted fs-6 ">${content?.capital}</span>`;
+
+  bodyContainer.innerHTML = `
+    <p class="fs-6">${content?.name} has a total population of ${content?.population}. It's currency is ${content?.currency} - ${content?.exchangeRate}</p>
+    <p class="fs-6">
+      <span class="fs-6">Current Weather:</span>
+      <span class="fs-6 mb-3 text-capitalize">${content.currentWeather.weather[0].description}</span>
+      with temperature of ${content.currentWeather.main.temp}°C, humidity of ${content.currentWeather.main.humidity}%, and wind speeds of ${content.currentWeather.wind.speed}m/s
+    </p>
+    `;
+
+  const offcanvas = new bootstrap.Offcanvas(infoContainer);
+  offcanvas.show();
 };
 
 const getCurrentLocation = async () => {
@@ -174,32 +174,29 @@ const getCurrentLocation = async () => {
     return new Promise((resolve, reject) => {
       window.navigator.geolocation.getCurrentPosition(
         async (pos) => {
-          const body = new FormData();
-          body.append(
-            "data",
-            JSON.stringify({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-            })
-          );
-          body.append("id", "geocodeLocation");
-          const res = await fetch("./assets/php/main.php", {
-            method: "post",
-            body,
-          });
+            const body = new FormData();
+            body.append(
+              "data",
+              JSON.stringify({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              })
+            );
+            body.append("id", "geocodeLocation");
+            const res = await fetch("./assets/php/main.php", {
+              method: "post",
+              body,
+            });
 
-          const { data } = await res.json();
-          let countryName = data.results[0].components.country;
-          const country = await getSelectedCountry(countryName);
-          const rate = await getCountryExchangeRate(country);
-          const weatherData = await getCityWeather(country);
-          const countryInfo = formatSelectedCountry(country, rate, weatherData);
-          showOnMap([pos.coords.latitude, pos.coords.longitude], countryInfo);
-          resolve(countryName);
-        },
-        (err) => {
-          reject(err);
-        }
+            const {
+              data
+            } = await res.json();
+            let countryName = data.results[0].components.country;
+            resolve(countryName);
+          },
+          (err) => {
+            reject(err);
+          }
       );
     });
   }
@@ -231,7 +228,7 @@ const getCityWeather = async (country) => {
   });
 };
 
-const fetchExchangeRates = async (currency) => {
+const loadExchangeRates = async () => {
   return new Promise(async (resolve, reject) => {
     const body = new FormData();
     body.append("id", "getExchangeRates");
@@ -241,7 +238,9 @@ const fetchExchangeRates = async (currency) => {
       body,
     });
 
-    const { data } = await res.json();
+    const {
+      data
+    } = await res.json();
     EXCHANGE_RATE = {
       base: data.base,
       rates: data.rates,
@@ -257,9 +256,7 @@ const getCountryExchangeRate = (country) => {
   return EXCHANGE_RATE.rates[currency];
 };
 
-const handleClick = async (el) => {
-  const countryName = el.target.textContent;
-  console.log("%s has been selected", countryName);
+const getCountryInfo = async (countryName) => {
   loadingWrapper.classList.add("loading");
   const country = await getSelectedCountry(countryName);
   try {
@@ -267,25 +264,35 @@ const handleClick = async (el) => {
     const weatherData = await getCityWeather(country);
     const countriesInfo = formatSelectedCountry(country, rate, weatherData);
 
-    showOnMap(country.capitalInfo["latlng"], countriesInfo);
-    const border = BORDERS.find((el) => el.name === countryName);
-    const polyline = L.polyline(border.bounds, { color: "blue" }).addTo(map);
-    // map.fitBounds(polyline.getBounds());
+    showOnMap(country.capitalInfo.latlng, countriesInfo);
+    const border = await getCountryBorder(countryName);
+    console.log(border);
+
+    const countryBorder = L.geoJSON(border, {
+      style: function (feature) {
+        return {
+          color: feature.properties.color
+        };
+      }
+    }).addTo(map);
+    map.fitBounds(countryBorder.getBounds());
     loadingWrapper.classList.remove("loading");
   } catch (error) {
     loadingWrapper.classList.remove("loading");
   }
 };
 
-const init = async () => {
-  // await getCountries();
-  await getCountriesFromFile();
-  BORDERS = await getBorderBoundaries();
-  await fetchExchangeRates();
-  const countryName = await getCurrentLocation();
-  updateButtonText(countryName);
+const handleClick = async (el) => {
+  const countryName = el.target.textContent;
+  await getCountryInfo(countryName);
 };
 
-window.onload = () => {
-  init();
+const init = async () => {
+  await loadCountriesFromFile();
+  await loadExchangeRates();
+  const countryName = await getCurrentLocation();
+  updateButtonText(countryName);
+  await getCountryInfo(countryName);
 };
+
+window.onload = init;
