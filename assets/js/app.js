@@ -3,11 +3,15 @@ const countriesElement = document.querySelectorAll(".country");
 const dropdownButton = document.getElementById("dropdownButton");
 const loadingWrapper = document.getElementById("loadingWrapper");
 
+const offcanvasFab = document.querySelector('#offcanvas-fab');
+const infoContainer = document.querySelector('.offcanvas');
+const offcanvas = new bootstrap.Offcanvas(infoContainer);
+
 let EXCHANGE_RATE = {};
 
 const popupHtml = "";
 
-const map = L.map("map");
+const map = L.map("map").setView([51.505, -0.09], 13);
 
 L.tileLayer(
   "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
@@ -21,10 +25,30 @@ L.tileLayer(
 ).addTo(map);
 
 const marker = L.marker([1.0, 38.0]).addTo(map);
-
+const markers = L.markerClusterGroup();
 /** This method will extract a list of countries from the countryBorders.geo.json file
  * The file must only return country names at this point
  */
+
+const getColorFromString = (text) => {
+  const hashCode = (str) => { // java String#hashCode
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return hash;
+  };
+
+  const intToRGB = (i) => {
+    var c = (i & 0x00FFFFFF)
+      .toString(16)
+      .toUpperCase();
+
+    return "00000".substring(0, 6 - c.length) + c;
+  };
+
+  return intToRGB(hashCode(text));
+};
 
 const loadCountriesFromFile = () => {
   loadingWrapper.classList.add("loading");
@@ -111,6 +135,7 @@ const formatSelectedCountry = (country, rate, weatherData) => {
     capital: country.capital[0],
     population: country.population,
     flag: country.flag,
+    countrycode: country.cca2,
     currency: `${country.currencies[currencyCode].name} (${currencyCode})`,
     exchangeRate: `1 ${currencyCode} = ${rate} ${EXCHANGE_RATE.base}`,
     currentWeather: weatherData,
@@ -144,28 +169,67 @@ const updateButtonText = (el) => {
 
 const showOnMap = ([lat, lng], content) => {
   marker.setLatLng([lat, lng]);
-  showCountryContent(content);
+  markers.addLayer(marker);
+  content.cities
+    .map(c => (L.marker([c.lat, c.lng]).bindPopup(`
+      <h6>${c.name}</h6>
+      <a href="https://${c.wikipedia}" target="_blank" class="btn btn-outline-primary btn-sm">Learn more</a>
+    `)))
+    .forEach(m => {
+      markers.addLayer(m);
+    });
+  map.addLayer(markers);
+
   map.setView([lat, lng], 6);
+  showCountryContent(content);
 };
 
 const showCountryContent = (content) => {
-  const infoContainer = document.querySelector('.offcanvas');
-  const titleContainer = document.querySelector('.offcanvas-title');
-  const bodyContainer = document.querySelector('.offcanvas-body');
+  const titleContainer = document.querySelector('.offcanvas-bottom .offcanvas-title');
+  const bodyContainer = document.querySelector('.offcanvas-bottom .offcanvas-body');
 
-  titleContainer.innerHTML = `${content.flag} ${content.name}<br/>
+  titleContainer.innerHTML = `${content.flag} ${content.name}&nbsp;
   <span id="capitalCity" class="text-muted fs-6 ">${content?.capital}</span>`;
 
   bodyContainer.innerHTML = `
-    <p class="fs-6">${content?.name} has a total population of ${content?.population}. It's currency is ${content?.currency} - ${content?.exchangeRate}</p>
-    <p class="fs-6">
-      <span class="fs-6">Current Weather:</span>
-      <span class="fs-6 mb-3 text-capitalize">${content.currentWeather.weather[0].description}</span>
-      with temperature of ${content.currentWeather.main.temp}°C, humidity of ${content.currentWeather.main.humidity}%, and wind speeds of ${content.currentWeather.wind.speed}m/s
-    </p>
+    <div class="row">
+      <div class="col-md-3">
+        <h5>Population</h5>
+        <p>${content?.population.toLocaleString('en')}</p>
+        <h5>Currency</h5>
+        <p>${content?.currency}</p>
+      </div>
+      <div class="col-md-3">
+        <h5>Weather Forecast</h5>
+        <p>${content.currentWeather.weather[0].description}</p>
+        <p><strong>Temperature</strong>: ${content.currentWeather.main.temp}°C</p>
+        <p><strong>Humidity</strong>: ${content.currentWeather.main.humidity}%</p>
+        <p><strong>Wind Speed</strong>: ${content.currentWeather.wind.speed}m/s</p>
+      </div>
+      <div class="col-md-3">
+        <h5>Latest news</h5>
+        <div class="media">
+          ${content?.articles.map(article => `
+          <img class="d-flex mr-3" src="${article.media}">
+          <div class="media-body">
+            <h6 class="mt-0">${article.title}</h6>
+            <a href="${article.link}">Read more</a>
+          </div>
+          `).join('</div><div class="media">')}
+        </div>
+      </div>
+      <div class="col-md-3">
+        <h5>Popular Cities</h5>
+        <p>
+          ${content.cities
+            .map(c => `<a href="https://${c.wikipedia}" target="_blank" class="btn btn-link">${c.name}</a>`)
+            .join('')
+          }
+        </p>
+      </div>
+    </div>
     `;
 
-  const offcanvas = new bootstrap.Offcanvas(infoContainer);
   offcanvas.show();
 };
 
@@ -228,6 +292,52 @@ const getCityWeather = async (country) => {
   });
 };
 
+const getLatestNews = async (countrycode) => {
+  return new Promise(async (resolve, reject) => {
+    const body = new FormData();
+    body.append(
+      "data",
+      JSON.stringify({
+        countrycode,
+      })
+    );
+    body.append("id", "getLatestNews");
+    try {
+      const res = await fetch("./assets/php/main.php", {
+        method: "post",
+        body,
+      });
+
+      const data = await res.json();
+      resolve(data.data);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getPopularCities = async (cardinals) => {
+  return new Promise(async (resolve, reject) => {
+    const body = new FormData();
+    body.append(
+      "data",
+      JSON.stringify(cardinals)
+    );
+    body.append("id", "getPopularCities");
+    try {
+      const res = await fetch("./assets/php/main.php", {
+        method: "post",
+        body,
+      });
+
+      const data = await res.json();
+      resolve(data.data);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const loadExchangeRates = async () => {
   return new Promise(async (resolve, reject) => {
     const body = new FormData();
@@ -264,9 +374,7 @@ const getCountryInfo = async (countryName) => {
     const weatherData = await getCityWeather(country);
     const countriesInfo = formatSelectedCountry(country, rate, weatherData);
 
-    showOnMap(country.capitalInfo.latlng, countriesInfo);
     const border = await getCountryBorder(countryName);
-    console.log(border);
 
     const countryBorder = L.geoJSON(border, {
       style: function (feature) {
@@ -275,7 +383,27 @@ const getCountryInfo = async (countryName) => {
         };
       }
     }).addTo(map);
-    map.fitBounds(countryBorder.getBounds());
+
+    const countryBorderBounds = countryBorder.getBounds();
+    map.fitBounds(countryBorderBounds);
+
+    const north = countryBorderBounds.getNorth(),
+      south = countryBorderBounds.getSouth(),
+      east = countryBorderBounds.getEast(),
+      west = countryBorderBounds.getWest();
+
+    const cities = await getPopularCities({
+      north,
+      south,
+      east,
+      west
+    });
+
+    const articles = await getLatestNews(countriesInfo.countrycode);
+    countriesInfo.cities = cities.filter(c => c.countrycode === countriesInfo.countrycode);
+    countriesInfo.articles = articles;
+    showOnMap(country.capitalInfo.latlng, countriesInfo);
+
     loadingWrapper.classList.remove("loading");
   } catch (error) {
     loadingWrapper.classList.remove("loading");
@@ -288,11 +416,25 @@ const handleClick = async (el) => {
 };
 
 const init = async () => {
+  loadingWrapper.classList.add("loading");
+  const countryName = await getCurrentLocation();
   await loadCountriesFromFile();
   await loadExchangeRates();
-  const countryName = await getCurrentLocation();
   updateButtonText(countryName);
   await getCountryInfo(countryName);
+
+
+  infoContainer.addEventListener('hidden.bs.offcanvas', function () {
+    offcanvasFab.style.display = 'block';
+  });
+
+  infoContainer.addEventListener('show.bs.offcanvas', function () {
+    offcanvasFab.style.display = 'none';
+  });
+
+  offcanvasFab.addEventListener('click', (e) => {
+    offcanvas.show();
+  });
 };
 
 window.onload = init;

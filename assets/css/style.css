@@ -34,7 +34,7 @@ body .loading-wrapper.loading {
 }
 
 body .map-wrapper {
-  height: 85vh;
+  height: 91vh;
   width: 100%;
 }
 
@@ -45,4 +45,23 @@ body .map-wrapper #map {
 
 body .card {
   border: none;
+}
+
+body #offcanvas-fab {
+  display: none;
+  position: fixed;
+  bottom: 16px;
+  left: calc(50% - 30px);
+  z-index: 9999;
+}
+
+.media {
+  display: flex;
+  column-gap: 10px;
+}
+
+.media img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
 }

@@ -19,7 +19,7 @@ try {
   }
 
   if ($id === 'getSingleCountry') {
-    $res = fetch("https://restcountries.com/v3.1/name/" . urlencode($data['name']) . "/?fullText=true&fields=name,currencies,flag,capital,population,capitalInfo");
+    $res = fetch("https://restcountries.com/v3.1/name/" . urlencode($data['name']) . "/?fullText=true&fields=name,currencies,flag,cca2,capital,population,capitalInfo");
   }
 
   if ($id === 'getCountryFromFile') {
@@ -30,6 +30,21 @@ try {
     $res = fetch(
       "https://api.openweathermap.org/data/2.5/weather?q=" . $data['city'] . "&units=metric&appid=70e19ba461fd1eb09a6eea1bbf30338f"
     );
+  }
+
+  if ($id === 'getPopularCities') {
+    $cities = fetch(
+      "http://api.geonames.org/citiesJSON?north=" . $data['north'] . "&south=" . $data['south'] . "&east=" . $data['east'] . "&west=" . $data['west'] . "&maxRows=5&username=flightltd"
+    );
+    $res = $cities['geonames'];
+  }
+
+  if ($id === 'getLatestNews') {
+    $news = fetch(
+      "https://api.newscatcherapi.com/v2/latest_headlines?countries=" . $data['countrycode'] . "&topic=travel&page_size=3",
+      array('x-api-key: 6c80lJpLpFXEqvmPQl01NYoMKiENUnbr96EBasgNExo')
+    );
+    $res = $news['articles'];
   }
 
   if ($id === 'getExchangeRates') {
@@ -54,12 +69,15 @@ echo json_encode($response);
 
 
 /* Methods for the API */
-function fetch($url)
+function fetch($url, $headers = null)
 {
   $ch = curl_init();
   curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
   curl_setopt($ch, CURLOPT_URL, $url);
+  if (isset($headers)) {
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+  }
 
   $result = curl_exec($ch);
 
