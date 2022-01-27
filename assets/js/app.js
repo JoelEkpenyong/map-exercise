@@ -102,7 +102,7 @@ const getSelectedCountry = (name) => {
     body.append(
       "data",
       JSON.stringify({
-        name,
+        name: encodeURIComponent(name),
       })
     );
     body.append("id", "getSingleCountry");
@@ -138,7 +138,7 @@ const formatSelectedCountry = (country, rate, weatherData) => {
     countrycode: country.cca2,
     currency: `${country.currencies[currencyCode].name} (${currencyCode})`,
     exchangeRate: `1 ${currencyCode} = ${rate} ${EXCHANGE_RATE.base}`,
-    currentWeather: weatherData,
+    forecast: weatherData,
     latlng: country.capitalInfo.latlng,
   };
 };
@@ -189,43 +189,90 @@ const showCountryContent = (content) => {
   const bodyContainer = document.querySelector('.offcanvas-bottom .offcanvas-body');
 
   titleContainer.innerHTML = `${content.flag} ${content.name}&nbsp;
-  <span id="capitalCity" class="text-muted fs-6 ">${content?.capital}</span>`;
+  <span id="capitalCity" class="text-muted fs-6 ">${content?.capital}</span>
+  <ul class="ms-3 nav nav-pills" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="home" aria-selected="true">
+          General Information
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" id="weather-tab" data-bs-toggle="tab" data-bs-target="#weather" type="button" role="tab" aria-controls="home" aria-selected="true">
+          Weather Forecast
+        </a>
+      </li>
+    </ul>`;
 
   bodyContainer.innerHTML = `
-    <div class="row">
-      <div class="col-md-3">
-        <h5>Population</h5>
-        <p>${content?.population.toLocaleString('en')}</p>
-        <h5>Currency</h5>
-        <p>${content?.currency}</p>
-      </div>
-      <div class="col-md-3">
-        <h5>Weather Forecast</h5>
-        <p>${content.currentWeather.weather[0].description}</p>
-        <p><strong>Temperature</strong>: ${content.currentWeather.main.temp}°C</p>
-        <p><strong>Humidity</strong>: ${content.currentWeather.main.humidity}%</p>
-        <p><strong>Wind Speed</strong>: ${content.currentWeather.wind.speed}m/s</p>
-      </div>
-      <div class="col-md-3">
-        <h5>Latest news</h5>
-        <div class="media">
-          ${content?.articles.map(article => `
-          <img class="d-flex mr-3" src="${article.media}">
-          <div class="media-body">
-            <h6 class="mt-0">${article.title}</h6>
-            <a href="${article.link}">Read more</a>
+    <div class="tab-content" id="myTabContent2">
+      <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+        <div class="row">
+          <div class="col-md-4">
+            <h5>Population</h5>
+            <p>${content?.population.toLocaleString('en')}</p>
+            <h5>Currency</h5>
+            <p>${content?.currency}</p>
           </div>
-          `).join('</div><div class="media">')}
+          <div class="col-md-4">
+            <h5>Latest news</h5>
+            <div class="media">
+              ${content?.articles.map(article => `
+              <img class="d-flex mr-3" src="${article.media}">
+              <div class="media-body">
+                <h6 class="mt-0">${article.title}</h6>
+                <a href="${article.link}">Read more</a>
+              </div>
+              `).join('</div><div class="media">')}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <h5>Popular Cities</h5>
+            <p>
+              ${content.cities
+                .map(c => `<a href="https://${c.wikipedia}" target="_blank" class="btn btn-link">${c.name}</a>`)
+                .join('')
+              }
+            </p>
+          </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <h5>Popular Cities</h5>
-        <p>
-          ${content.cities
-            .map(c => `<a href="https://${c.wikipedia}" target="_blank" class="btn btn-link">${c.name}</a>`)
-            .join('')
-          }
-        </p>
+
+      <div class="tab-pane fade show" id="weather" role="tabpanel" aria-labelledby="weather-tab">
+        <div class="row">
+          <ul class="nav nav-tabs mt-3" id="myTab" role="tablist">
+          ${content?.forecast.map((f, i) => `
+            <li class="nav-item" role="presentation">
+              <a class="nav-link  ${i === 0 && 'active'}" id="${f.date}-tab" data-bs-toggle="tab" data-bs-target="#panel-${f.date}" type="button" role="tab" aria-controls="home" aria-selected="true">
+                <div class="text-center">
+                  <div>${f.date}</div>
+                  <img height="64" src="${f.day.condition.icon}" title="${f.day.condition.text}" />
+                  <p>
+                    <strong>${f.day.maxtemp_c}°C</strong> /
+                    <small>${f.day.mintemp_c}°C</small>
+                  </p>
+                </div>
+              </a>
+            </li>
+          `).join('')}
+          </ul>
+          <div class="tab-content" id="myTabContent">
+          ${content?.forecast.map((f, i) => `
+          <div class="tab-pane fade show ${i === 0 && 'active'}" id="panel-${f.date}" role="tabpanel" aria-labelledby="${f.date}-tab">
+            <div class="d-flex px-3 py-3">
+              ${f.hour
+                .filter(h => (new Date(h.time).getHours()) % 3 === 0)
+                .map(h => `
+                  <div class="text-center me-3">
+                    <div>${h.time.split(' ')[1]}</div>
+                    <img height="64" src="${h.condition.icon}" title="${h.condition.text}" />
+                    <p><strong>${h.temp_c}°C</strong></p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+          </div>
+        </div>
       </div>
     </div>
     `;
@@ -373,7 +420,6 @@ const getCountryInfo = async (countryName) => {
     const rate = await getCountryExchangeRate(country);
     const weatherData = await getCityWeather(country);
     const countriesInfo = formatSelectedCountry(country, rate, weatherData);
-
     const border = await getCountryBorder(countryName);
 
     const countryBorder = L.geoJSON(border, {
@@ -417,11 +463,16 @@ const handleClick = async (el) => {
 
 const init = async () => {
   loadingWrapper.classList.add("loading");
-  const countryName = await getCurrentLocation();
-  await loadCountriesFromFile();
-  await loadExchangeRates();
-  updateButtonText(countryName);
-  await getCountryInfo(countryName);
+  try {
+    const countryName = await getCurrentLocation();
+    await loadCountriesFromFile();
+    await loadExchangeRates();
+    updateButtonText(countryName);
+    await getCountryInfo(countryName);
+  } catch (error) {
+    loadingWrapper.classList.remove("loading");
+    console.log(error);
+  }
 
 
   infoContainer.addEventListener('hidden.bs.offcanvas', function () {

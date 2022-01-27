@@ -19,7 +19,7 @@ try {
   }
 
   if ($id === 'getSingleCountry') {
-    $res = fetch("https://restcountries.com/v3.1/name/" . urlencode($data['name']) . "/?fullText=true&fields=name,currencies,flag,cca2,capital,population,capitalInfo");
+    $res = fetch("https://restcountries.com/v3.1/name/" . $data['name'] . "/?fullText=true&fields=name,currencies,flag,cca2,capital,population,capitalInfo");
   }
 
   if ($id === 'getCountryFromFile') {
@@ -27,16 +27,18 @@ try {
   }
 
   if ($id === 'getWeather') {
-    $res = fetch(
-      "https://api.openweathermap.org/data/2.5/weather?q=" . $data['city'] . "&units=metric&appid=70e19ba461fd1eb09a6eea1bbf30338f"
+    $weather = fetch(
+      "http://api.weatherapi.com/v1/forecast.json?q=" . $data['city'] . "&days=3&key=91b205effd35461cbc2113747222701"
     );
+
+    $res = isset($weather) && isset($weather['forecast']) ? $weather['forecast']['forecastday'] : $weather;
   }
 
   if ($id === 'getPopularCities') {
     $cities = fetch(
       "http://api.geonames.org/citiesJSON?north=" . $data['north'] . "&south=" . $data['south'] . "&east=" . $data['east'] . "&west=" . $data['west'] . "&maxRows=5&username=flightltd"
     );
-    $res = $cities['geonames'];
+    $res = isset($cities) && isset($cities['geonames']) ? $cities['geonames'] : [];
   }
 
   if ($id === 'getLatestNews') {
@@ -44,7 +46,7 @@ try {
       "https://api.newscatcherapi.com/v2/latest_headlines?countries=" . $data['countrycode'] . "&topic=travel&page_size=3",
       array('x-api-key: 6c80lJpLpFXEqvmPQl01NYoMKiENUnbr96EBasgNExo')
     );
-    $res = $news['articles'];
+    $res = isset($news) && isset($news['articles']) ? $news['articles'] : [];
   }
 
   if ($id === 'getExchangeRates') {
