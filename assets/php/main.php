@@ -49,12 +49,6 @@ try {
     $res = isset($news) && isset($news['articles']) ? $news['articles'] : [];
   }
 
-  if ($id === 'getExchangeRates') {
-    $res = fetch(
-      "https://openexchangerates.org/api/latest.json?app_id=c61cb86d27c846648c2759cae6c10f72"
-    );
-  }
-
   if ($id === 'getCountryBorder') {
     $res = getCountryBorder($data['name']);
   }

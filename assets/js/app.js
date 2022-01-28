@@ -1,15 +1,10 @@
 const countriesWrapper = document.getElementById("countries-ul");
-const countriesElement = document.querySelectorAll(".country");
 const dropdownButton = document.getElementById("dropdownButton");
 const loadingWrapper = document.getElementById("loadingWrapper");
 
 const offcanvasFab = document.querySelector('#offcanvas-fab');
 const infoContainer = document.querySelector('.offcanvas');
 const offcanvas = new bootstrap.Offcanvas(infoContainer);
-
-let EXCHANGE_RATE = {};
-
-const popupHtml = "";
 
 const map = L.map("map").setView([51.505, -0.09], 13);
 
@@ -29,26 +24,6 @@ const markers = L.markerClusterGroup();
 /** This method will extract a list of countries from the countryBorders.geo.json file
  * The file must only return country names at this point
  */
-
-const getColorFromString = (text) => {
-  const hashCode = (str) => { // java String#hashCode
-    var hash = 0;
-    for (var i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return hash;
-  };
-
-  const intToRGB = (i) => {
-    var c = (i & 0x00FFFFFF)
-      .toString(16)
-      .toUpperCase();
-
-    return "00000".substring(0, 6 - c.length) + c;
-  };
-
-  return intToRGB(hashCode(text));
-};
 
 const loadCountriesFromFile = () => {
   loadingWrapper.classList.add("loading");
@@ -127,7 +102,7 @@ const getSelectedCountry = (name) => {
   });
 };
 
-const formatSelectedCountry = (country, rate, weatherData) => {
+const formatSelectedCountry = (country, weatherData) => {
   const currencyCode = Object.keys(country.currencies)[0];
 
   return {
@@ -137,8 +112,7 @@ const formatSelectedCountry = (country, rate, weatherData) => {
     flag: country.flag,
     countrycode: country.cca2,
     currency: `${country.currencies[currencyCode].name} (${currencyCode})`,
-    exchangeRate: `1 ${currencyCode} = ${rate} ${EXCHANGE_RATE.base}`,
-    forecast: weatherData,
+    forecast: weatherData || [],
     latlng: country.capitalInfo.latlng,
   };
 };
@@ -385,41 +359,12 @@ const getPopularCities = async (cardinals) => {
   });
 };
 
-const loadExchangeRates = async () => {
-  return new Promise(async (resolve, reject) => {
-    const body = new FormData();
-    body.append("id", "getExchangeRates");
-
-    const res = await fetch("./assets/php/main.php", {
-      method: "post",
-      body,
-    });
-
-    const {
-      data
-    } = await res.json();
-    EXCHANGE_RATE = {
-      base: data.base,
-      rates: data.rates,
-    };
-
-    resolve(data);
-    reject("Failed");
-  });
-};
-
-const getCountryExchangeRate = (country) => {
-  let currency = Object.keys(country.currencies)[0];
-  return EXCHANGE_RATE.rates[currency];
-};
-
 const getCountryInfo = async (countryName) => {
   loadingWrapper.classList.add("loading");
   const country = await getSelectedCountry(countryName);
   try {
-    const rate = await getCountryExchangeRate(country);
     const weatherData = await getCityWeather(country);
-    const countriesInfo = formatSelectedCountry(country, rate, weatherData);
+    const countriesInfo = formatSelectedCountry(country, weatherData);
     const border = await getCountryBorder(countryName);
 
     const countryBorder = L.geoJSON(border, {
@@ -466,7 +411,6 @@ const init = async () => {
   try {
     const countryName = await getCurrentLocation();
     await loadCountriesFromFile();
-    await loadExchangeRates();
     updateButtonText(countryName);
     await getCountryInfo(countryName);
   } catch (error) {
